@@ -6,16 +6,16 @@ const jwt = require('jsonwebtoken');
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await User.find()
-            .populate('id_igreja', 'nome') // Retorna apenas o nome da igreja
+            .populate('igreja', 'igreja') // Retorna apenas o nome da igreja
             .populate('id_distrito', 'nome') // Retorna apenas o nome do distrito
             .lean(); // Converte para um objeto simples do JavaScript para podermos modificar
 
         const formattedUsers = users.map(user => ({
             ...user,
-            igreja: user.id_igreja ? user.id_igreja.nome : null,
+            igreja: user.igreja ? user.igreja.igreja : null,
             distrito: user.id_distrito ? user.id_distrito.nome : null,
-            id_igreja: undefined,
-            id_distrito: undefined,
+            igreja: undefined,
+            igreja: undefined,
         }));
 
         res.status(200).json(formattedUsers);
@@ -28,8 +28,8 @@ exports.getAllUsers = async (req, res) => {
 // Buscar um usuário por ID
 exports.getUserById = async (req, res) => {
     try {
-        const user = await User.findById(req.params.id)
-            .populate('id_igreja', 'nome') // Retorna apenas o nome da igreja
+        const user = await User.findById(req.params.igreja)
+            .populate('igreja', 'igreja') // Retorna apenas o nome da igreja
             .populate('id_distrito', 'nome') // Retorna apenas o nome do distrito
             .lean(); // Converte para objeto do Javascript
 
@@ -39,9 +39,9 @@ exports.getUserById = async (req, res) => {
 
        const formattedUser = {
             ...user,
-            igreja: user.id_igreja ? user.id_igreja.nome : null,
+            igreja: user.igreja ? user.igreja.igreja : null,
             distrito: user.id_distrito ? user.id_distrito.nome : null,
-            id_igreja: undefined,
+            igreja: undefined,
             id_distrito: undefined,
         };
 
@@ -55,7 +55,7 @@ exports.getUserById = async (req, res) => {
 // Criar um novo usuário
 exports.createUser = async (req, res) => {
     try {
-        const { nome, email, senha, cargo, id_igreja, id_distrito } = req.body;
+        const { nome, email, senha, cargo, igreja, id_distrito } = req.body;
 
         // Verificar se o e-mail já está cadastrado
         const existingUser = await User.findOne({ email });
@@ -72,7 +72,7 @@ exports.createUser = async (req, res) => {
             email,
             senha: hashedPassword,
             cargo,
-            id_igreja,
+            igreja,
             id_distrito
         });
 
@@ -87,7 +87,7 @@ exports.createUser = async (req, res) => {
 // Atualizar um usuário
 exports.updateUser = async (req, res) => {
     try {
-        const { nome, email, senha, cargo, id_igreja, id_distrito } = req.body;
+        const { nome, email, senha, cargo, igreja, id_distrito } = req.body;
 
         // Buscar o usuário pelo ID
         const user = await User.findById(req.params.id);
@@ -99,7 +99,7 @@ exports.updateUser = async (req, res) => {
         user.nome = nome || user.nome;
         user.email = email || user.email;
         user.cargo = cargo || user.cargo;
-        user.id_igreja = id_igreja || user.id_igreja;
+        user.igreja = igreja || user.igreja;
         user.id_distrito = id_distrito || user.id_distrito;
 
         // Atualizar a senha se fornecida
@@ -119,7 +119,7 @@ exports.updateUser = async (req, res) => {
 // Deletar um usuário
 exports.deleteUser = async (req, res) => {
   try {
-     const user = await User.findById(req.params.id);
+     const user = await User.findById(req.params.igreja);
       if (!user) {
         return res.status(404).json({ message: 'Usuário não encontrado' });
       }
