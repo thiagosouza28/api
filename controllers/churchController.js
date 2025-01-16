@@ -9,7 +9,7 @@ function isValidObjectId(id) {
 // Criar uma nova igreja
 exports.createChurch = async (req, res) => {
     try {
-        if (!req.body.nome) {
+        if (!req.body.igreja) {
             return res.status(400).json({ error: 'O campo nome é obrigatório' });
         }
 
@@ -40,11 +40,11 @@ exports.getAllChurches = async (req, res) => {
 // Buscar uma igreja específica pelo ID
 exports.getChurchById = async (req, res) => {
     try {
-        if (!isValidObjectId(req.params.id)) {
+        if (!isValidObjectId(req.params.igreja)) {
             return res.status(400).json({ error: 'ID da igreja inválido' });
         }
 
-        const church = await Church.findById(req.params.id);
+        const church = await Church.findById(req.params.igreja);
         if (!church) {
             return res.status(404).json({ error: 'Igreja não encontrada' });
         }
@@ -58,7 +58,7 @@ exports.getChurchById = async (req, res) => {
 // Atualizar uma igreja
 exports.updateChurch = async (req, res) => {
     try {
-        if (!isValidObjectId(req.params.id)) {
+        if (!isValidObjectId(req.params.igreja)) {
             return res.status(400).json({ error: 'ID da igreja inválido' });
         }
 
@@ -67,11 +67,11 @@ exports.updateChurch = async (req, res) => {
         }
 
         // Validação adicional: verifica se os campos são do tipo correto
-        if (req.body.nome && typeof req.body.nome !== 'string') {
+        if (req.body.igreja && typeof req.body.igreja !== 'string') {
             return res.status(400).json({ error: 'O campo nome deve ser uma string' });
         }
 
-        const church = await Church.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        const church = await Church.findByIdAndUpdate(req.params.igreja, req.body, { new: true, runValidators: true });
         if (!church) {
             return res.status(404).json({ error: 'Igreja não encontrada' });
         }
@@ -89,11 +89,11 @@ exports.updateChurch = async (req, res) => {
 // Deletar uma igreja
 exports.deleteChurch = async (req, res) => {
     try {
-        if (!isValidObjectId(req.params.id)) {
+        if (!isValidObjectId(req.params.igreja)) {
             return res.status(400).json({ error: 'ID da igreja inválido' });
         }
 
-        const church = await Church.findByIdAndDelete(req.params.id);
+        const church = await Church.findByIdAndDelete(req.params.igreja);
         if (!church) {
             return res.status(404).json({ error: 'Igreja não encontrada' });
         }
