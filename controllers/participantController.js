@@ -55,9 +55,9 @@ async function sendConfirmationEmail(participant) {
         const dataNascimentoFormatada = formatDate(new Date(participant.nascimento));
          console.log(`Enviando e-mail de confirmação para: ${participant.email}`);
         let info = await transporter.sendMail({
-            from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
+            from: `"Inscrição Retiro Espiritual 2025" <${process.env.EMAIL_USER}>`,
             to: participant.email,
-            subject: 'Confirmação de Cadastro',
+            subject: 'Confirmação de inscrição',
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
                     <h2 style="color: #4361ee; text-align: center;">Confirmação de Cadastro</h2>
@@ -70,7 +70,7 @@ async function sendConfirmationEmail(participant) {
                         <li style="margin-bottom: 10px;"><strong>Data de Nascimento:</strong> ${dataNascimentoFormatada}</li>
                         <li style="margin-bottom: 10px;"><strong>Igreja:</strong> ${participant.igreja}</li>
                     </ul>
-                    <p style="font-size: 16px;">Obrigado por se inscrever!</p>
+                    <p style="font-size: 16px;">Aguarde a confrimação de pagamento...</p>
                 </div>
             `
         });
@@ -85,7 +85,7 @@ async function sendConfirmationEmail(participant) {
 async function sendPaymentConfirmationEmail(participant) {
    try {
        let info = await transporter.sendMail({
-           from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
+           from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
            to: participant.email,
             subject: 'Confirmação de Pagamento',
             html: `
@@ -100,13 +100,12 @@ async function sendPaymentConfirmationEmail(participant) {
                 </div>
             `
         });
-        console.log('E-mail de confirmação de pagamento enviado: %s', info.messageId);
-    } catch (error) {
-        console.error('Erro ao enviar e-mail de confirmação de pagamento:', error);
-       throw new Error('Erro ao enviar e-mail de confirmação de pagamento: ' + error.message);
+       console.log('E-mail de confirmação de pagamento enviado: %s', info.messageId);
+  } catch (error) {
+       console.error('Erro ao enviar e-mail de confirmação de pagamento:', error);
+      throw new Error('Erro ao enviar e-mail de confirmação de pagamento: ' + error.message);
     }
 }
-
 
 // Criar um novo participante (público, sem autenticação)
 exports.createPublicParticipant = async (req, res) => {
@@ -117,186 +116,192 @@ exports.createPublicParticipant = async (req, res) => {
            return res.status(400).json({ message: "O nome da igreja é obrigatório e deve ser uma string não vazia." });
         }
 
-
-       const id_participante = await generateParticipantId();
-        const participant = new Participant({
+         const id_participante = await generateParticipantId();
+         const participant = new Participant({
             id_participante,
-            nome,
-            email,
+             nome,
+           email,
             nascimento,
-           idade: calculateAge(nascimento),
+            idade: calculateAge(nascimento),
             igreja,
         });
 
-        await participant.save();
-       await sendConfirmationEmail(participant);
+       await participant.save();
+        await sendConfirmationEmail(participant);
 
-        res.status(201).json(participant);
-    } catch (error) {
-        console.error(error);
+         res.status(201).json(participant);
+   } catch (error) {
+       console.error(error);
         if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
-           return res.status(400).json({ message: 'Erro de validação', errors: messages });
-      }
-        res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
+            const messages = Object.values(error.errors).map(val => val.message);
+            return res.status(400).json({ message: 'Erro de validação', errors: messages });
+       }
+         res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
     }
 };
 
 
 // Criar um novo participante (comum)
 exports.createParticipant = async (req, res) => {
-   try {
+    try {
         const id_participante = await generateParticipantId();
         const participant = new Participant({ ...req.body, id_participante });
          await participant.save();
 
        await sendConfirmationEmail(participant);
 
-        res.status(201).json(participant);
-    } catch (error) {
-       console.error(error);
-       if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(val => val.message);
+         res.status(201).json(participant);
+     } catch (error) {
+        console.error(error);
+        if (error.name === 'ValidationError') {
+          const messages = Object.values(error.errors).map(val => val.message);
             return res.status(400).json({ message: 'Erro de validação', errors: messages });
         }
-         res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
+        res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
     }
 };
 
 // Listar todos os participantes
 exports.getAllParticipants = async (req, res) => {
     try {
-        const { igreja } = req.query;
+       const { igreja } = req.query;
         const query = {};
 
-       if (igreja) {
+        if (igreja) {
            query.igreja = igreja;
        }
 
        const participants = await Participant.find(query)
            .lean();
 
-       res.json(participants);
-    } catch (error) {
+       const formattedParticipants = participants.map(participant => ({
+            ...participant,
+           nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
+            data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)): null,
+            data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)): null
+       }));
+
+       res.json(formattedParticipants);
+   } catch (error) {
        console.error(error);
        res.status(500).json({ message: 'Erro ao buscar participantes', error: error.message });
     }
 };
 
-
 exports.getParticipantById = async (req, res) => {
-    try {
-       const participant = await Participant.findOne({ id_participante: req.params.id_participante })
+     try {
+        const participant = await Participant.findOne({ id_participante: req.params.id_participante })
             .lean();
 
         if (!participant) {
             return res.status(404).json({ message: 'Participante não encontrado' });
-        }
+       }
 
-       res.json(participant);
-   } catch (error) {
-        console.error(error);
-      res.status(500).json({ message: 'Erro ao buscar participante', error: error.message });
-  }
+        const formattedParticipant = {
+           ...participant,
+            nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
+             data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)): null,
+            data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : null
+        };
+
+
+      res.json(formattedParticipant);
+    } catch (error) {
+       console.error(error);
+        res.status(500).json({ message: 'Erro ao buscar participante', error: error.message });
+    }
 };
-
 
 // Atualizar um participante
 exports.updateParticipant = async (req, res) => {
     try {
-         const { igreja } = req.body;
-        const updateData = { ...req.body };
-
+        const { igreja } = req.body;
+         const updateData = { ...req.body };
 
        if (igreja && (typeof igreja !== 'string' || igreja.trim() === '')) {
-            return res.status(400).json({ message: "O nome da igreja fornecido é inválido." });
-        }
+          return res.status(400).json({ message: "O nome da igreja fornecido é inválido." });
+      }
 
-        if (igreja === undefined) {
-          delete updateData.igreja;
-        }
-
-
+      if (igreja === undefined) {
+            delete updateData.igreja;
+       }
        const participant = await Participant.findOneAndUpdate(
-          { id_participante: req.params.id_participante },
-          updateData,
-            { new: true, runValidators: true }
+            { id_participante: req.params.id_participante },
+            updateData,
+           { new: true, runValidators: true }
         );
 
-        if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
+       if (!participant) {
+          return res.status(404).json({ message: 'Participante não encontrado' });
        }
 
-        res.json(participant);
+      res.json(participant);
     } catch (error) {
-       console.error(error);
+        console.error(error);
         if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
-           return res.status(400).json({ message: 'Erro de validação', errors: messages });
+          const messages = Object.values(error.errors).map((val) => val.message);
+            return res.status(400).json({ message: 'Erro de validação', errors: messages });
        }
       res
-          .status(500)
-        .json({ message: 'Erro ao atualizar participante', error: error.message });
+           .status(500)
+           .json({ message: 'Erro ao atualizar participante', error: error.message });
     }
 };
-
 
 // Confirmação de pagamento
 exports.confirmarPagamento = async (req, res) => {
     try {
-         const participant = await Participant.findOneAndUpdate(
-            { id_participante: req.params.id_participante },
+       const participant = await Participant.findOneAndUpdate(
+           { id_participante: req.params.id_participante },
             { data_confirmacao: new Date() },
-           { new: true }
-        );
+            { new: true }
+       );
 
-        if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
-       }
+      if (!participant) {
+            return res.status(404).json({ message: 'Participante não encontrado' });
+        }
 
        await sendPaymentConfirmationEmail(participant);
-
-        res.json(participant);
-    } catch (error) {
+       res.json(participant);
+   } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Erro ao confirmar pagamento', error: error.message });
-    }
+        res.status(500).json({ message: 'Erro ao confirmar pagamento', error: error.message });
+   }
 };
 
 // Cancelamento da confirmação de pagamento
 exports.unconfirmPayment = async (req, res) => {
-    try {
+   try {
         const participant = await Participant.findOneAndUpdate(
-          { id_participante: req.params.id_participante },
+           { id_participante: req.params.id_participante },
            { data_confirmacao: null },
            { new: true }
-        );
+       );
 
        if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
+            return res.status(404).json({ message: 'Participante não encontrado' });
        }
 
-       res.json({ message: 'Confirmação de pagamento cancelada com sucesso', participant });
+        res.json({ message: 'Confirmação de pagamento cancelada com sucesso', participant });
     } catch (error) {
         console.error('Erro ao cancelar confirmação de pagamento:', error);
-       res.status(500).json({ message: 'Erro ao cancelar confirmação de pagamento', error: error.message });
-    }
+        res.status(500).json({ message: 'Erro ao cancelar confirmação de pagamento', error: error.message });
+   }
 };
-
 
 // Deletar um participante
 exports.deleteParticipant = async (req, res) => {
-   try {
-         const participant = await Participant.findOneAndDelete({ id_participante: req.params.id_participante });
-        if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
-       }
+    try {
+        const participant = await Participant.findOneAndDelete({ id_participante: req.params.id_participante });
+       if (!participant) {
+            return res.status(404).json({ message: 'Participante não encontrado' });
+        }
 
-        res.json({ message: 'Participante removido com sucesso' });
-     } catch (error) {
+       res.json({ message: 'Participante removido com sucesso' });
+    } catch (error) {
        console.error(error);
-        res.status(500).json({ message: 'Erro ao remover participante', error: error.message });
-   }
+       res.status(500).json({ message: 'Erro ao remover participante', error: error.message });
+    }
 };
 
 module.exports = exports;
