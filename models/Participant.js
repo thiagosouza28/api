@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const { v4: uuidv4 } = require('uuid'); // Importar a biblioteca UUID
 
-const participantSchema = new Schema({
-    id_participante: { // ID personalizado, por exemplo, DI20230001
+const participantSchema = new mongoose.Schema({
+    id_participante: {
         type: String,
-        required: true,
+        required: [true, 'O ID do participante é obrigatório'],
         unique: true
     },
     nome: {
@@ -17,15 +17,10 @@ const participantSchema = new Schema({
         type: Date,
         required: [true, 'A data de nascimento é obrigatória']
     },
-    idade: {
-        type: Number,
-        required: [true, 'A idade é obrigatória'],
-        min: [0, 'A idade deve ser maior ou igual a 0']
-    },
-    igreja: {
-        type: String,
-        trim: true,
-        required: [true, 'O nome da igreja é obrigatório']
+    igreja: { // Referência para o modelo Igreja
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Igreja',
+        required: [true, 'A igreja é obrigatória']
     },
     email: {
         type: String,
@@ -40,8 +35,15 @@ const participantSchema = new Schema({
     },
     data_confirmacao: {
         type: Date,
-        default: null // Inicialmente, a data de confirmação é nula
-    }
+        default: null
+    },
+    uniqueId: { // ID único para permitir múltiplas inscrições com o mesmo email
+        type: String,
+        required: true,
+        unique: true,
+        default: uuidv4
+    },
+    id_usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario', default: null } // Adicione se necessário
 });
 
 module.exports = mongoose.model('Participant', participantSchema);
