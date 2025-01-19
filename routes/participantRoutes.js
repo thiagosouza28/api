@@ -3,8 +3,7 @@ const router = express.Router();
 const participantController = require('../controllers/participantController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Rota pública para criar um novo participante (sem autenticação)
-router.post('/inscricao', participantController.createPublicParticipant);
+router.post('/inscricao', participantController.createParticipant); // Use a rota correta
 
 // Middleware de autenticação para as rotas abaixo
 router.use(authMiddleware);
