@@ -7,4 +7,4 @@ const churchSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model('Church', churchSchema);
+module.exports = mongoose.model('Igreja', churchSchema);
