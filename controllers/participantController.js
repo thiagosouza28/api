@@ -84,18 +84,33 @@ async function sendConfirmationEmail(participant) {
             to: participant.email,
             subject: 'Confirmação de inscrição',
             html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
-                    <h2 style="color: #4361ee; text-align: center;">Confirmação de Cadastro</h2>
-                    <p style="font-size: 16px;">Olá, <strong>${participant.nome}</strong>!</p>
-                    <p style="font-size: 16px;">Sua inscrição foi realizada com sucesso.</p>
-                    <p style="font-size: 16px;">Confira os detalhes de sua inscrição:</p>
-                    <ul style="list-style: none; padding: 0;">
-                        <li style="margin-bottom: 10px;"><strong>Nome:</strong> ${participant.nome}</li>
-                        <li style="margin-bottom: 10px;"><strong>Idade:</strong> ${participant.idade}</li>
-                        <li style="margin-bottom: 10px;"><strong>Data de Nascimento:</strong> ${dataNascimentoFormatada}</li>
-                        <li style="margin-bottom: 10px;"><strong>Igreja:</strong> ${participant.igreja ? participant.igreja.nome : 'N/A'}</li> </ul>
-                    <p style="font-size: 16px;">Aguarde a confirmação de seu pagamento!</p>
-                </div>
+                <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); background-color: #f9f9f9;">
+    <h2 style="color: #4361ee; text-align: center; margin-bottom: 20px; font-size: 24px;">🎉 Confirmação de Cadastro 🎉</h2>
+    <p style="font-size: 16px; color: #333;">Olá, <strong>${participant.nome}</strong>!</p>
+    <p style="font-size: 16px; color: #333;">Sua inscrição foi realizada com sucesso! Aqui estão os detalhes:</p>
+    <div style="border-top: 1px solid #ddd; margin: 20px 0;"></div>
+    <ul style="list-style: none; padding: 0; margin: 0;">
+        <li style="margin-bottom: 15px; font-size: 16px; color: #555;">
+            <strong>Nome:</strong> ${participant.nome}
+        </li>
+        <li style="margin-bottom: 15px; font-size: 16px; color: #555;">
+            <strong>Idade:</strong> ${participant.idade}
+        </li>
+        <li style="margin-bottom: 15px; font-size: 16px; color: #555;">
+            <strong>Data de Nascimento:</strong> ${dataNascimentoFormatada}
+        </li>
+        <li style="margin-bottom: 15px; font-size: 16px; color: #555;">
+            <strong>Igreja:</strong> ${participant.igreja ? participant.igreja.nome : 'N/A'}
+        </li>
+    </ul>
+    <div style="border-top: 1px solid #ddd; margin: 20px 0;"></div>
+    <p style="font-size: 16px; color: #333; text-align: center;">Aguarde a confirmação de seu pagamento!</p>
+    <div style="text-align: center; margin-top: 20px;">
+        <button style="background-color: #4361ee; color: white; padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;">
+            Baixar Comprovante
+        </button>
+    </div>
+</div>
             `
         });
         console.log('E-mail de confirmação enviado: %s', info.messageId);
@@ -240,7 +255,7 @@ exports.updateParticipant = async (req, res) => {
         if (igreja === undefined) {
             delete updateData.igreja;
         }
-        if(updateData.nascimento) updateData.nascimento = new Date(updateData.nascimento); //Ensure nascimento is a date object
+        if (updateData.nascimento) updateData.nascimento = new Date(updateData.nascimento); //Ensure nascimento is a date object
 
         const participant = await Participant.findOneAndUpdate(
             { id_participante: req.params.id_participante },
