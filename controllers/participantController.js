@@ -119,9 +119,6 @@ async function sendPaymentConfirmationEmail(participant) {
                     <p style="font-size: 16px;">Olá, <strong>${participant.nome}</strong>!</p>
                     <p style="font-size: 16px;">Seu pagamento foi confirmado com sucesso!</p>
                     <p style="font-size: 16px;">Obrigado!</p>
-                    <p style="font-size: 16px; text-align: center; margin-top: 30px;">
-                        <a href="#" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
-                    </p>
                 </div>
             `
         });
