@@ -119,8 +119,13 @@ exports.createPublicParticipant = async (req, res) => {
     try {
         const { nome, email, nascimento, igreja } = req.body;
 
-        if (!igreja || typeof igreja !== 'string' || igreja.trim() === '') {
-            return res.status(400).json({ message: "O nome da igreja é obrigatório e deve ser uma string não vazia." });
+        if (!nome || !email || !nascimento || !igreja) {
+            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        }
+
+        const igrejaObj = await mongoose.model('Igreja').findById(igreja);
+        if (!igrejaObj) {
+            return res.status(404).json({ message: 'Igreja não encontrada.' });
         }
 
         const id_participante = await generateParticipantId();
@@ -128,19 +133,19 @@ exports.createPublicParticipant = async (req, res) => {
             id_participante,
             nome,
             email,
-            nascimento,
+            nascimento: new Date(nascimento),
             idade: calculateAge(nascimento),
-            igreja,
+            igreja: igrejaObj.igreja,
         });
 
         await participant.save();
         await sendConfirmationEmail(participant);
-
         res.status(201).json(participant);
     } catch (error) {
-        console.error(error);
+        console.error('Erro ao criar participante:', error);
+        //Tratamento de erro mais robusto (conforme exemplo anterior)
         if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
+            const messages = Object.values(error.errors).map(val => val.message);
             return res.status(400).json({ message: 'Erro de validação', errors: messages });
         }
         res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
