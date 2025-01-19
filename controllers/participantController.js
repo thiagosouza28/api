@@ -100,7 +100,7 @@ async function sendConfirmationEmail(participant) {
             <strong>Data de Nascimento:</strong> ${dataNascimentoFormatada}
         </li>
         <li style="margin-bottom: 15px; font-size: 16px; color: #555;">
-            <strong>Igreja:</strong> ${participant.igreja ? participant.igreja.nome : 'N/A'}
+            <strong>Igreja:</strong> ${participant.igreja ? participant.igreja.igreja : 'N/A'}
         </li>
     </ul>
     <div style="border-top: 1px solid #ddd; margin: 20px 0;"></div>
@@ -166,7 +166,7 @@ exports.createPublicParticipant = async (req, res) => {
             email,
             nascimento: new Date(nascimento), // Ensure nascimento is a Date object
             idade: calculateAge(nascimento),
-            igreja: igrejaObj._id, // Use the church object ID
+            igreja: igrejaObj.igreja, // Use the church object ID
         });
 
 
@@ -214,7 +214,7 @@ exports.getAllParticipants = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
             data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : null,
-            igreja: participant.igreja ? participant.igreja.nome : null // Assuming igreja has a 'nome' field
+            igreja: participant.igreja ? participant.igreja.igreja : null // Assuming igreja has a 'nome' field
         }));
         res.json(formattedParticipants);
     } catch (error) {
@@ -234,7 +234,7 @@ exports.getParticipantById = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
             data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : null,
-            igreja: participant.igreja ? participant.igreja.nome : null // Assuming igreja has a 'nome' field
+            igreja: participant.igreja ? participant.igreja.igreja : null // Assuming igreja has a 'nome' field
 
         };
         res.json(formattedParticipant);
@@ -341,7 +341,7 @@ exports.generatePdf = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : 'N/A',
             data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)) : 'N/A',
             data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : 'N/A',
-            igreja: participant.igreja ? participant.igreja.nome : 'N/A'
+            igreja: participant.igreja ? participant.igreja.igreja : 'N/A'
         }));
 
         const fonts = {
