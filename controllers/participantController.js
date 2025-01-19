@@ -115,34 +115,35 @@ async function sendPaymentConfirmationEmail(participant) {
 
 
 // Criar um novo participante (público, sem autenticação)
-exports.createPublicParticipant = async (req, res) => {
+exports.createParticipant = async (req, res) => {
     try {
-        const { nome, email, nascimento, igreja } = req.body;
+        const { nome, email, nascimento, igreja, id_usuario } = req.body;
 
-        if (!igreja || typeof igreja !== 'string' || igreja.trim() === '') {
-            return res.status(400).json({ message: "O nome da igreja é obrigatório e deve ser uma string não vazia." });
+        if (!nome || !email || !nascimento || !igreja) {
+            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
         }
 
-        const id_participante = await generateParticipantId();
+        const igrejaObj = await mongoose.model('Igreja').findById(igreja);
+        if (!igrejaObj) {
+            return res.status(400).json({ message: 'Igreja inválida.' }); //Melhor tratamento de erro
+        }
+
+        const id_participante = await generateParticipantId(); // Sua função para gerar IDs
         const participant = new Participant({
             id_participante,
             nome,
             email,
-            nascimento,
+            nascimento: new Date(nascimento),
             idade: calculateAge(nascimento),
-            igreja,
+            igreja: igrejaObj._id,
+            id_usuario // Adicione o ID do usuário se aplicável
         });
 
         await participant.save();
-        await sendConfirmationEmail(participant);
-
+        await sendConfirmationEmail(participant); // Sua função para enviar email
         res.status(201).json(participant);
     } catch (error) {
-        console.error(error);
-        if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
-            return res.status(400).json({ message: 'Erro de validação', errors: messages });
-        }
+        console.error('Erro ao criar participante:', error);
         res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
     }
 };
