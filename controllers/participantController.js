@@ -114,7 +114,6 @@ async function sendPaymentConfirmationEmail(participant) {
 }
 
 
-// Criar um novo participante (público, sem autenticação)
 exports.createParticipant = async (req, res) => {
     try {
         const { nome, email, nascimento, igreja, id_usuario } = req.body;
