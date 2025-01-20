@@ -19,23 +19,23 @@ const participantSchema = new mongoose.Schema({
         required: [true, 'A data de nascimento é obrigatória']
     },
     igreja: {
-        type: String,
+        type: String,  // Changed to String
         required: true,
-        trim: true,
+        trim: true
     },
     email: {
         type: String,
         required: [true, 'O email é obrigatório'],
         lowercase: true,
         trim: true,
-        unique: false,
+        unique: false, // Removed unique constraint. Add validation in controller
         validate: {
-            validator: function(v) {
+            validator: function (v) {
                 return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(v);
             },
             message: props => `${props.value} não é um email válido!`
         }
-    }, // <--- COMMA ADDED HERE
+    },
     data_inscricao: {
         type: Date,
         default: Date.now
@@ -50,7 +50,6 @@ const participantSchema = new mongoose.Schema({
         unique: true,
         default: uuidv4
     }
-    // id_usuario is removed as requested
 });
 
 module.exports = mongoose.model('Participant', participantSchema);
