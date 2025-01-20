@@ -5,7 +5,7 @@ const participantSchema = new mongoose.Schema({
     id_participante: {
         type: String,
         required: [true, 'O ID do participante é obrigatório'],
-        unique: true // Manter único para cada participante
+        unique: true
     },
     nome: {
         type: String,
@@ -28,13 +28,14 @@ const participantSchema = new mongoose.Schema({
         required: [true, 'O email é obrigatório'],
         lowercase: true,
         trim: true,
-        unique: false, // Remova unique para permitir e-mails duplicados
+        unique: false,
         validate: {
             validator: function(v) {
                 return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(v);
             },
             message: props => `${props.value} não é um email válido!`
-        },
+        }
+    }, // <--- COMMA ADDED HERE
     data_inscricao: {
         type: Date,
         default: Date.now
@@ -48,8 +49,8 @@ const participantSchema = new mongoose.Schema({
         required: true,
         unique: true,
         default: uuidv4
-    },
-    id_usuario: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario', default: null } // ID do usuário (se autenticado)
+    }
+    // id_usuario is removed as requested
 });
 
 module.exports = mongoose.model('Participant', participantSchema);
