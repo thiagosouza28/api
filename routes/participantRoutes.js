@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const participantController = require('../controllers/participantController');
-const express = require('express');
 
 
 router.post('/inscricao', participantController.createParticipantUnAuth); // Sem autenticação
