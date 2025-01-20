@@ -9,7 +9,7 @@ const Church = require('../models/Church');
 require('dotenv').config();
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Nodemailer configuration (Improved security and clarity)
+// Nodemailer configuration
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT, 10),
@@ -23,7 +23,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-// Function to generate participant ID (Improved concurrency handling)
+// Function to generate participant ID
 async function generateParticipantId() {
     const year = new Date().getFullYear();
     let nextNumber;
@@ -37,19 +37,19 @@ async function generateParticipantId() {
         nextNumber = nextNumber.toString().padStart(4, '0');
     } catch (error) {
         console.error("Error generating ID:", error);
-        return `DI${year}0001`; // Default ID in case of error
+        return `DI${year}0001`;
     }
     return `DI${year}${nextNumber}`;
 }
 
-// Helper function to calculate age (using Luxon)
+// Helper function to calculate age
 function calculateAge(dateOfBirth) {
     const birthDate = DateTime.fromISO(dateOfBirth);
     const now = DateTime.now();
     return now.diff(birthDate, 'years').years;
 }
 
-// Function to format date (using Luxon)
+// Function to format date
 function formatDate(date) {
     return DateTime.fromJSDate(date).toFormat('dd/MM/yyyy');
 }
@@ -58,7 +58,7 @@ function formatDate(date) {
 async function sendConfirmationEmail(participant) {
     try {
         const dataNascimentoFormatada = formatDate(participant.nascimento);
-        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`;
+        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`; // Replace with your actual URL
 
         await transporter.sendMail({
             from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
@@ -89,35 +89,6 @@ async function sendConfirmationEmail(participant) {
         throw new Error(`Erro ao enviar email de confirmação: ${error.message}`);
     }
 }
-
-// Send payment confirmation email
-async function sendPaymentConfirmationEmail(participant) {
-    try {
-        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`;
-
-        await transporter.sendMail({
-            from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
-            to: participant.email,
-            subject: 'Confirmação de Pagamento',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
-                    <h2 style="color: #4361ee; text-align: center;">Confirmação de Pagamento</h2>
-                    <p style="font-size: 16px;">Olá, <strong>${participant.nome}</strong>!</p>
-                    <p style="font-size: 16px;">Seu pagamento foi confirmado com sucesso!</p>
-                    <p style="font-size: 16px;">Obrigado!</p>
-                    <p style="font-size: 16px; text-align: center; margin-top: 30px;">
-                        <a href="${linkAcesso}" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
-                    </p>
-                </div>
-            `
-        });
-        console.log('Email de confirmação de pagamento enviado para:', participant.email);
-    } catch (error) {
-        console.error('Erro ao enviar email de confirmação de pagamento:', error);
-        throw new Error(`Erro ao enviar email de confirmação de pagamento: ${error.message}`);
-    }
-}
-
 // Function to handle errors
 function handleError(res, error, defaultMessage) {
     console.error(defaultMessage, error);
@@ -255,6 +226,53 @@ exports.getParticipantById = async (req, res) => {
         handleError(res, error, 'Erro ao buscar participante');
     }
 };
+
+
+// Abstracted participant creation function
+const createParticipant = async (req, res, authenticated = false) => {
+    try {
+        console.log(`Received Request Body (${authenticated ? 'Auth' : 'UnAuth'}):`, req.body);
+        const { nome, email, nascimento, igrejaId } = req.body;
+
+        if (!nome || !email || !nascimento || !igrejaId) {
+            throw new Error(`Todos os campos são obrigatórios. Dados recebidos: ${JSON.stringify(req.body)}`);
+        }
+
+        const existingParticipant = await Participant.findOne({ email });
+        if (existingParticipant) {
+            return res.status(409).json({ message: 'Já existe um participante com este e-mail.' });
+        }
+
+        const church = await Church.findById(igrejaId);
+        if (!church) {
+            return res.status(404).json({ message: 'Igreja não encontrada.' });
+        }
+
+        const id_participante = await generateParticipantId();
+        const participant = new Participant({
+            id_participante,
+            nome,
+            email,
+            nascimento: DateTime.fromISO(nascimento).toJSDate(),
+            idade: calculateAge(nascimento),
+            igreja: church.nome,  // Store the church name
+        });
+
+
+        await participant.save();
+        await sendConfirmationEmail(participant);
+
+        res.status(201).json(participant);
+
+    } catch (error) {
+        handleError(res, error, `Erro ao criar participante (${authenticated ? 'com' : 'sem'} autenticação)`, req.body);
+    }
+};
+
+exports.createParticipantAuth = (req, res) => createParticipant(req, res, true);
+exports.createParticipantUnAuth = (req, res) => createParticipant(req, res, false);
+
+
 
 // Update participant
 exports.updateParticipant = async (req, res) => {
