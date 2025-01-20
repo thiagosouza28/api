@@ -4,61 +4,65 @@ const nodemailer = require('nodemailer');
 const pdfMake = require('pdfmake');
 const fs = require('fs');
 const path = require('path');
+const { DateTime } = require('luxon');
 require('dotenv').config();
+const authMiddleware = require('../middlewares/authMiddleware'); // Importe o middleware de autenticação
 
-// Configuração do Nodemailer
+
+// Configurações do Nodemailer (melhorias para segurança)
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false,
+    port: parseInt(process.env.EMAIL_PORT, 10),
+    secure: process.env.EMAIL_SECURE === 'true',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_APP_PASSWORD
     },
     tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Remover em produção!
     }
 });
+
 
 // Função para gerar o ID do participante
 async function generateParticipantId() {
     const year = new Date().getFullYear();
-    const lastParticipant = await Participant.findOne({ id_participante: { $regex: `^DI${year}` } }, {}, { sort: { 'id_participante': -1 } });
-    let nextNumber = '0001';
-    if (lastParticipant) {
-        const lastNumber = parseInt(lastParticipant.id_participante.slice(-4), 10);
-        nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+    let nextNumber;
+
+    try {
+        const lastParticipant = await Participant.findOne({ id_participante: { $regex: `^DI${year}` } })
+            .sort({ id_participante: -1 })
+            .lean();
+
+        nextNumber = lastParticipant ? parseInt(lastParticipant.id_participante.slice(-4), 10) + 1 : 1;
+        nextNumber = nextNumber.toString().padStart(4, '0');
+    } catch (error) {
+        console.error("Erro ao gerar ID:", error);
+        return `DI${year}0001`; // ID padrão em caso de erro
     }
     return `DI${year}${nextNumber}`;
 }
 
-// Função auxiliar para calcular a idade (implementação básica)
+// Função auxiliar para calcular a idade (usando Luxon)
 function calculateAge(dateOfBirth) {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const month = today.getMonth() - birthDate.getMonth();
-    if (month < 0 || (month === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
-    return age;
+    const birthDate = DateTime.fromISO(dateOfBirth);
+    const now = DateTime.now();
+    return now.diff(birthDate, 'years').years;
 }
 
-// Função para formatar a data (DD/MM/YYYY)
+// Função para formatar a data (usando Luxon)
 function formatDate(date) {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    return DateTime.fromJSDate(date).toFormat('dd/MM/yyyy');
 }
 
 // Enviar e-mail de confirmação de cadastro
 async function sendConfirmationEmail(participant) {
     try {
-        const dataNascimentoFormatada = formatDate(new Date(participant.nascimento));
+        const dataNascimentoFormatada = formatDate(participant.nascimento);
+        const linkAcesso = `https://api-ckry.onrender.com/api//participante/${participant.id_participante}`; // Substitua pelo link correto
 
-        let info = await transporter.sendMail({
-            from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
+        await transporter.sendMail({
+            from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
             to: participant.email,
             subject: 'Confirmação de Cadastro',
             html: `
@@ -75,22 +79,24 @@ async function sendConfirmationEmail(participant) {
                     </ul>
                     <p style="font-size: 16px;">Obrigado por se cadastrar!</p>
                     <p style="font-size: 16px; text-align: center; margin-top: 30px;">
-                        <a href="#" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+                        <a href="${linkAcesso}" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
                     </p>
                 </div>
             `
         });
-        console.log('E-mail de confirmação enviado: %s', info.messageId);
+        console.log('E-mail de confirmação enviado para:', participant.email);
     } catch (error) {
         console.error('Erro ao enviar e-mail de confirmação:', error);
-        throw new Error('Erro ao enviar e-mail de confirmação: ' + error.message);
+        throw new Error(`Erro ao enviar e-mail de confirmação: ${error.message}`);
     }
 }
 
 // Enviar e-mail de confirmação de pagamento
 async function sendPaymentConfirmationEmail(participant) {
     try {
-        let info = await transporter.sendMail({
+        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`; // Substitua pelo link correto
+
+        await transporter.sendMail({
             from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
             to: participant.email,
             subject: 'Confirmação de Pagamento',
@@ -101,238 +107,249 @@ async function sendPaymentConfirmationEmail(participant) {
                     <p style="font-size: 16px;">Seu pagamento foi confirmado com sucesso!</p>
                     <p style="font-size: 16px;">Obrigado!</p>
                     <p style="font-size: 16px; text-align: center; margin-top: 30px;">
-                        <a href="#" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+                        <a href="${linkAcesso}" style="background-color: #4361ee; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
                     </p>
                 </div>
             `
         });
-        console.log('E-mail de confirmação de pagamento enviado: %s', info.messageId);
+        console.log('E-mail de confirmação de pagamento enviado para:', participant.email);
     } catch (error) {
         console.error('Erro ao enviar e-mail de confirmação de pagamento:', error);
-        throw new Error('Erro ao enviar e-mail de confirmação de pagamento: ' + error.message);
+        throw new Error(`Erro ao enviar e-mail de confirmação de pagamento: ${error.message}`);
     }
 }
 
 
-exports.createParticipant = async (req, res) => {
+// Função para lidar com erros
+function handleError(res, error, defaultMessage) {
+    console.error(defaultMessage, error);
+    let statusCode = 500;
+    let errorMessage = 'Erro interno do servidor';
+
+    if (error.name === 'ValidationError') {
+        statusCode = 400;
+        errorMessage = 'Erro de validação: ' + Object.values(error.errors).map(e => e.message).join(', ');
+    } else if (error.code === 11000) {
+        statusCode = 409;
+        errorMessage = 'Já existe um participante com esse ID.';
+    } else if (error.message.includes('Igreja inválida')) {
+        statusCode = 400;
+        errorMessage = 'Igreja inválida';
+    } else if (error.name === 'CastError') {
+        statusCode = 400;
+        errorMessage = 'Tipo de dado inválido para algum campo.';
+    }
+
+    res.status(statusCode).json({ message: errorMessage, errors: error.errors || [] });
+}
+
+
+// Criar participante SEM autenticação
+exports.createParticipantUnAuth = async (req, res) => {
     try {
-        const { nome, email, nascimento, igreja, id_usuario } = req.body;
+        const { nome, email, nascimento, igreja } = req.body;
 
         if (!nome || !email || !nascimento || !igreja) {
-            return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+            throw new Error('Todos os campos são obrigatórios.');
         }
 
         const igrejaObj = await mongoose.model('Igreja').findById(igreja);
         if (!igrejaObj) {
-            return res.status(400).json({ message: 'Igreja inválida.' }); //Melhor tratamento de erro
+            throw new Error('Igreja inválida.');
         }
 
-        const id_participante = await generateParticipantId(); // Sua função para gerar IDs
+        const id_participante = await generateParticipantId();
         const participant = new Participant({
             id_participante,
             nome,
             email,
-            nascimento: new Date(nascimento),
+            nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
             igreja: igrejaObj._id,
-            id_usuario // Adicione o ID do usuário se aplicável
         });
 
         await participant.save();
-        await sendConfirmationEmail(participant); // Sua função para enviar email
+        await sendConfirmationEmail(participant);
         res.status(201).json(participant);
     } catch (error) {
-        console.error('Erro ao criar participante:', error);
-        res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
+        handleError(res, error, 'Erro ao criar participante (sem autenticação)');
     }
 };
 
-
-
-// Criar um novo participante (comum)
-exports.createParticipant = async (req, res) => {
+// Criar participante COM autenticação
+exports.createParticipantAuth = async (req, res) => {
     try {
+        //Middleware de autenticação já verifica o token
+        const { nome, email, nascimento, igreja } = req.body;
+
+        if (!nome || !email || !nascimento || !igreja) {
+            throw new Error('Todos os campos são obrigatórios.');
+        }
+
+        const igrejaObj = await mongoose.model('Igreja').findById(igreja);
+        if (!igrejaObj) {
+            throw new Error('Igreja inválida.');
+        }
+
         const id_participante = await generateParticipantId();
-        const participant = new Participant({ ...req.body, id_participante });
-         await participant.save();
+        const participant = new Participant({
+            id_participante,
+            nome,
+            email,
+            nascimento: DateTime.fromISO(nascimento).toJSDate(),
+            idade: calculateAge(nascimento),
+            igreja: igrejaObj._id,
+        });
 
+        await participant.save();
         await sendConfirmationEmail(participant);
-
-         res.status(201).json(participant);
+        res.status(201).json(participant);
     } catch (error) {
-        console.error(error);
-       if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
-            return res.status(400).json({ message: 'Erro de validação', errors: messages });
-       }
-        res.status(500).json({ message: 'Erro ao criar participante', error: error.message });
+        handleError(res, error, 'Erro ao criar participante (com autenticação)');
     }
 };
 
 // Listar todos os participantes
 exports.getAllParticipants = async (req, res) => {
     try {
-         const { igreja } = req.query;
-        const query = {};
+        const { igreja } = req.query;
+        const query = igreja ? { igreja } : {};
 
-       if (igreja) {
-            query.igreja = igreja;
-       }
+        const participants = await Participant.find(query).lean();
 
-        const participants = await Participant.find(query)
-          .lean();
-
-
-       const formattedParticipants = participants.map(participant => ({
-            ...participant,
-            nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
-            data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)): null,
-            data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : null
+        const formattedParticipants = participants.map(p => ({
+            ...p,
+            nascimento: p.nascimento ? formatDate(p.nascimento) : null,
+            data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
+            data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
+            igreja: p.igreja ? (await mongoose.model('Igreja').findById(p.igreja).lean()).nome : 'N/A'
         }));
+
         res.json(formattedParticipants);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Erro ao buscar participantes', error: error.message });
+        handleError(res, error, 'Erro ao buscar participantes');
     }
 };
 
 exports.getParticipantById = async (req, res) => {
     try {
-        const participant = await Participant.findOne({ id_participante: req.params.id_participante })
-           .lean();
+        const participant = await Participant.findOne({ id_participante: req.params.id_participante }).lean();
 
         if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
-       }
+            return res.status(404).json({ message: 'Participante não encontrado' });
+        }
 
-       const formattedParticipant = {
-           ...participant,
-            nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : null,
-             data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)): null,
-             data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : null
+        const formattedParticipant = {
+            ...participant,
+            nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
+            data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
+            data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
+            igreja: participant.igreja ? (await mongoose.model('Igreja').findById(participant.igreja).lean()).nome : 'N/A'
         };
 
-         res.json(formattedParticipant);
+        res.json(formattedParticipant);
     } catch (error) {
-       console.error(error);
-        res.status(500).json({ message: 'Erro ao buscar participante', error: error.message });
+        handleError(res, error, 'Erro ao buscar participante');
     }
 };
 
 // Atualizar um participante
 exports.updateParticipant = async (req, res) => {
-   try {
-         const { igreja } = req.body;
+    try {
+        const { id_participante } = req.params;
         const updateData = { ...req.body };
 
-       if (igreja && (typeof igreja !== 'string' || igreja.trim() === '')) {
-           return res.status(400).json({ message: "O nome da igreja fornecido é inválido." });
-        }
-
-        if (igreja === undefined) {
-            delete updateData.igreja;
+        if (updateData.igreja && typeof updateData.igreja !== 'string' || updateData.igreja.trim() === '') {
+            throw new Error('O ID da igreja deve ser uma string válida.');
         }
 
         const participant = await Participant.findOneAndUpdate(
-           { id_participante: req.params.id_participante },
-           updateData,
+            { id_participante },
+            updateData,
             { new: true, runValidators: true }
         );
 
-
-       if (!participant) {
+        if (!participant) {
             return res.status(404).json({ message: 'Participante não encontrado' });
-       }
+        }
+
         res.json(participant);
     } catch (error) {
-       console.error(error);
-       if (error.name === 'ValidationError') {
-           const messages = Object.values(error.errors).map(val => val.message);
-         return res.status(400).json({ message: 'Erro de validação', errors: messages });
-      }
-        res
-           .status(500)
-           .json({ message: 'Erro ao atualizar participante', error: error.message });
+        handleError(res, error, 'Erro ao atualizar participante');
     }
 };
 
 // Confirmação de pagamento
 exports.confirmarPagamento = async (req, res) => {
     try {
-       const participant = await Participant.findOneAndUpdate(
-          { id_participante: req.params.id_participante },
-            { data_confirmacao: new Date() },
-           { new: true }
-      );
-
-        if (!participant) {
-            return res.status(404).json({ message: 'Participante não encontrado' });
-       }
-
-        await sendPaymentConfirmationEmail(participant);
-       res.json(participant);
-    } catch (error) {
-       console.error(error);
-        res.status(500).json({ message: 'Erro ao confirmar pagamento', error: error.message });
-    }
-};
-
-
-// Cancelamento da confirmação de pagamento
-exports.unconfirmPayment = async (req, res) => {
-   try {
+        const { id_participante } = req.params;
         const participant = await Participant.findOneAndUpdate(
-           { id_participante: req.params.id_participante },
-            { data_confirmacao: null },
-           { new: true }
+            { id_participante },
+            { data_confirmacao: new Date() },
+            { new: true }
         );
 
         if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
+            return res.status(404).json({ message: 'Participante não encontrado' });
         }
 
-       res.json({ message: 'Confirmação de pagamento cancelada com sucesso', participant });
-   } catch (error) {
-        console.error('Erro ao cancelar confirmação de pagamento:', error);
-        res.status(500).json({ message: 'Erro ao cancelar confirmação de pagamento', error: error.message });
-   }
+        await sendPaymentConfirmationEmail(participant);
+        res.json(participant);
+    } catch (error) {
+        handleError(res, error, 'Erro ao confirmar pagamento');
+    }
 };
 
+// Cancelamento da confirmação de pagamento
+exports.unconfirmPayment = async (req, res) => {
+    try {
+        const { id_participante } = req.params;
+        const participant = await Participant.findOneAndUpdate(
+            { id_participante },
+            { data_confirmacao: null },
+            { new: true }
+        );
+
+        if (!participant) {
+            return res.status(404).json({ message: 'Participante não encontrado' });
+        }
+
+        res.json({ message: 'Confirmação de pagamento cancelada com sucesso', participant });
+    } catch (error) {
+        handleError(res, error, 'Erro ao cancelar confirmação de pagamento');
+    }
+};
 
 // Deletar um participante
 exports.deleteParticipant = async (req, res) => {
-   try {
-         const participant = await Participant.findOneAndDelete({ id_participante: req.params.id_participante });
+    try {
+        const { id_participante } = req.params;
+        const participant = await Participant.findOneAndDelete({ id_participante });
+
         if (!participant) {
-           return res.status(404).json({ message: 'Participante não encontrado' });
-       }
+            return res.status(404).json({ message: 'Participante não encontrado' });
+        }
 
         res.json({ message: 'Participante removido com sucesso' });
     } catch (error) {
-       console.error(error);
-       res.status(500).json({ message: 'Erro ao remover participante', error: error.message });
-   }
+        handleError(res, error, 'Erro ao remover participante');
+    }
 };
 
-
+// Gerar PDF
 exports.generatePdf = async (req, res) => {
     try {
         const { igreja } = req.query;
+        const query = igreja ? { igreja } : {};
+        const participants = await Participant.find(query).lean();
 
-         const query = {};
-
-        if (igreja) {
-           query.igreja = igreja;
-        }
-
-         const participants = await Participant.find(query).lean();
-         const formattedParticipants = participants.map(participant => ({
-            ...participant,
-             nascimento: participant.nascimento ? formatDate(new Date(participant.nascimento)) : 'N/A',
-           data_inscricao: participant.data_inscricao ? formatDate(new Date(participant.data_inscricao)) : 'N/A',
-             data_confirmacao: participant.data_confirmacao ? formatDate(new Date(participant.data_confirmacao)) : 'N/A',
-         }));
-
+        const formattedParticipants = participants.map(p => ({
+            ...p,
+            nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
+            data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
+            data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
+            igreja: p.igreja ? (await mongoose.model('Igreja').findById(p.igreja).lean()).nome : 'N/A'
+        }));
 
         const fonts = {
             Roboto: {
@@ -340,67 +357,64 @@ exports.generatePdf = async (req, res) => {
                 bold: path.join(__dirname, '..', 'assets', 'Roboto-Medium.ttf'),
                 italics: path.join(__dirname, '..', 'assets', 'Roboto-Italic.ttf'),
                 bolditalics: path.join(__dirname, '..', 'assets', 'Roboto-BoldItalic.ttf')
-           }
+            }
         };
         const printer = new pdfMake({ fonts });
 
         const docDefinition = {
-              content: [
+            content: [
                 { text: 'Lista de Participantes', style: 'header' },
-                 {
-                     table: {
-                         body: [
-                            [
-                               { text: 'ID', style: 'tableHeader' },
-                                { text: 'Nome', style: 'tableHeader' },
-                               { text: 'Data de Nascimento', style: 'tableHeader' },
-                                { text: 'Idade', style: 'tableHeader' },
-                                { text: 'Igreja', style: 'tableHeader' },
-                                 { text: 'Data de Inscrição', style: 'tableHeader' },
-                                { text: 'Data de Confirmação', style: 'tableHeader' },
-                            ],
-                            ...formattedParticipants.map(participant => [
-                                 participant.id_participante,
-                                participant.nome,
-                                participant.nascimento,
-                                participant.idade,
-                                 participant.igreja,
-                                participant.data_inscricao,
-                                participant.data_confirmacao,
-                           ])
+                {
+                    table: {
+                        body: [
+                            [{ text: 'ID', style: 'tableHeader' },
+                            { text: 'Nome', style: 'tableHeader' },
+                            { text: 'Data de Nascimento', style: 'tableHeader' },
+                            { text: 'Idade', style: 'tableHeader' },
+                            { text: 'Igreja', style: 'tableHeader' },
+                            { text: 'Data de Inscrição', style: 'tableHeader' },
+                            { text: 'Data de Confirmação', style: 'tableHeader' }],
+                            ...formattedParticipants.map(p => [
+                                p.id_participante,
+                                p.nome,
+                                p.nascimento,
+                                p.idade,
+                                p.igreja,
+                                p.data_inscricao,
+                                p.data_confirmacao
+                            ])
                         ]
-                     }
-                 }
-           ],
-             styles: {
-                 header: {
-                     fontSize: 18,
-                     bold: true,
+                    }
+                }
+            ],
+            styles: {
+                header: {
+                    fontSize: 18,
+                    bold: true,
                     margin: [0, 0, 0, 20],
                     alignment: 'center'
                 },
                 tableHeader: {
                     bold: true,
-                   fontSize: 10,
+                    fontSize: 10,
                     fillColor: '#f0f0f0',
-                    alignment: 'center',
+                    alignment: 'center'
                 }
-           }
-       };
+            }
+        };
 
-      const pdfDoc = printer.createPdfKitDocument(docDefinition, {});
-       const chunks = [];
-        pdfDoc.on('data', (chunk) => chunks.push(chunk));
-         pdfDoc.on('end', () => {
+        const pdfDoc = printer.createPdfKitDocument(docDefinition, {});
+        const chunks = [];
+        pdfDoc.on('data', chunk => chunks.push(chunk));
+        pdfDoc.on('end', () => {
             const result = Buffer.concat(chunks);
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="participantes-${igreja || 'todos'}.pdf"`);
             res.send(result);
-          });
+        });
         pdfDoc.end();
-   } catch (error) {
-          console.error('Erro ao gerar PDF:', error);
-        res.status(500).json({ message: 'Erro ao gerar PDF', error: error.message });
+    } catch (error) {
+        handleError(res, error, 'Erro ao gerar PDF');
     }
 };
 
