@@ -202,6 +202,16 @@ exports.updateParticipant = async (req, res) => {
         const { id_participante } = req.params;
         const updateData = { ...req.body };
 
+        if (updateData.hasOwnProperty('igrejaId')) {
+            const church = await Church.findById(updateData.igrejaId);
+            if (church) {
+                updateData.igreja = church.nome; 
+            } else {
+                updateData.igreja = null; 
+            }
+            delete updateData.igrejaId; 
+        }
+
         const participant = await Participant.findOneAndUpdate(
             { id_participante },
             updateData,
@@ -209,12 +219,12 @@ exports.updateParticipant = async (req, res) => {
         );
 
         if (!participant) {
-            throw new Error('Participante não encontrado');
+            return res.status(404).json({ message: 'Participante não encontrado' }); 
         }
 
         res.json(participant);
     } catch (error) {
-        handleError(res, error, 'Erro ao atualizar participante');
+        handleError(res, error, 'Erro ao atualizar participante', req.body);
     }
 };
 
