@@ -1,23 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const participantController = require('../controllers/participantController');
-const authMiddleware = require('../middlewares/authMiddleware'); // Import authMiddleware
+const authMiddleware = require('../middlewares/authMiddleware');
 
-// Routes without authentication
-router.post('/inscricao', participantController.createParticipantUnAuth);
 
-// Apply authentication middleware to the routes below
-router.use(authMiddleware);
+router.post('/inscricao', participantController.createParticipantUnAuth); // Sem autenticação
 
-// Routes requiring authentication
-router.post('/', participantController.createParticipantAuth);
-router.get('/', participantController.getAllParticipants);
-router.get('/:id_participante', participantController.getParticipantById);
-router.put('/:id_participante', participantController.updateParticipant);
-router.put('/:id_participante/confirmar-pagamento', participantController.confirmarPagamento);
-router.put('/:id_participante/cancelar-confirmacao', participantController.unconfirmPayment);
-router.delete('/:id_participante', participantController.deleteParticipant);
-router.get('/pdf', participantController.generatePdf); //Assuming this is for generating PDF
+router.use(authMiddleware); // Aplica o middleware de autenticação para as rotas abaixo.
+
+router.post('/', participantController.createParticipantAuth); // Com autenticação
+router.get('/', participantController.getAllParticipants);  // Corrected
+router.get('/:id_participante', participantController.getParticipantById); // Corrected
+router.put('/:id_participante', participantController.updateParticipant); // Corrected
+router.put('/:id_participante/confirmar-pagamento', participantController.confirmarPagamento); // Corrected
+router.put('/:id_participante/cancelar-confirmacao', participantController.unconfirmPayment); // Corrected
+router.delete('/:id_participante', participantController.deleteParticipant); // Corrected
+router.get('/pdf', participantController.generatePdf); // Corrected
 
 
 module.exports = router;
