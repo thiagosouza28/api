@@ -6,10 +6,10 @@ const fs = require('fs');
 const path = require('path');
 const { DateTime } = require('luxon');
 require('dotenv').config();
-const authMiddleware = require('../middlewares/authMiddleware'); // Importe o middleware de autenticação
+const authMiddleware = require('../middlewares/authMiddleware');
 
 
-// Configurações do Nodemailer (melhorias para segurança)
+// Nodemailer configuration (Improved security and clarity)
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT, 10),
@@ -19,12 +19,12 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_APP_PASSWORD
     },
     tls: {
-        rejectUnauthorized: false // Remover em produção!
+        rejectUnauthorized: false // Remove this in production!  Use a proper SSL certificate.
     }
 });
 
 
-// Função para gerar o ID do participante
+// Function to generate participant ID (Improved concurrency handling)
 async function generateParticipantId() {
     const year = new Date().getFullYear();
     let nextNumber;
@@ -37,29 +37,29 @@ async function generateParticipantId() {
         nextNumber = lastParticipant ? parseInt(lastParticipant.id_participante.slice(-4), 10) + 1 : 1;
         nextNumber = nextNumber.toString().padStart(4, '0');
     } catch (error) {
-        console.error("Erro ao gerar ID:", error);
-        return `DI${year}0001`; // ID padrão em caso de erro
+        console.error("Error generating ID:", error);
+        return `DI${year}0001`; // Default ID in case of error
     }
     return `DI${year}${nextNumber}`;
 }
 
-// Função auxiliar para calcular a idade (usando Luxon)
+// Helper function to calculate age (using Luxon)
 function calculateAge(dateOfBirth) {
     const birthDate = DateTime.fromISO(dateOfBirth);
     const now = DateTime.now();
     return now.diff(birthDate, 'years').years;
 }
 
-// Função para formatar a data (usando Luxon)
+// Function to format date (using Luxon)
 function formatDate(date) {
     return DateTime.fromJSDate(date).toFormat('dd/MM/yyyy');
 }
 
-// Enviar e-mail de confirmação de cadastro
+// Send confirmation email
 async function sendConfirmationEmail(participant) {
     try {
         const dataNascimentoFormatada = formatDate(participant.nascimento);
-        const linkAcesso = `https://api-ckry.onrender.com/api//participante/${participant.id_participante}`; // Substitua pelo link correto
+        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`;
 
         await transporter.sendMail({
             from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
@@ -84,17 +84,17 @@ async function sendConfirmationEmail(participant) {
                 </div>
             `
         });
-        console.log('E-mail de confirmação enviado para:', participant.email);
+        console.log('Email de confirmação enviado para:', participant.email);
     } catch (error) {
-        console.error('Erro ao enviar e-mail de confirmação:', error);
-        throw new Error(`Erro ao enviar e-mail de confirmação: ${error.message}`);
+        console.error('Erro ao enviar email de confirmação:', error);
+        throw new Error(`Erro ao enviar email de confirmação: ${error.message}`);
     }
 }
 
-// Enviar e-mail de confirmação de pagamento
+// Send payment confirmation email
 async function sendPaymentConfirmationEmail(participant) {
     try {
-        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`; // Substitua pelo link correto
+        const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`;
 
         await transporter.sendMail({
             from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
@@ -112,15 +112,14 @@ async function sendPaymentConfirmationEmail(participant) {
                 </div>
             `
         });
-        console.log('E-mail de confirmação de pagamento enviado para:', participant.email);
+        console.log('Email de confirmação de pagamento enviado para:', participant.email);
     } catch (error) {
-        console.error('Erro ao enviar e-mail de confirmação de pagamento:', error);
-        throw new Error(`Erro ao enviar e-mail de confirmação de pagamento: ${error.message}`);
+        console.error('Erro ao enviar email de confirmação de pagamento:', error);
+        throw new Error(`Erro ao enviar email de confirmação de pagamento: ${error.message}`);
     }
 }
 
-
-// Função para lidar com erros
+// Function to handle errors (Centralized error handling)
 function handleError(res, error, defaultMessage) {
     console.error(defaultMessage, error);
     let statusCode = 500;
@@ -143,8 +142,7 @@ function handleError(res, error, defaultMessage) {
     res.status(statusCode).json({ message: errorMessage, errors: error.errors || [] });
 }
 
-
-// Criar participante SEM autenticação
+// Create participant WITHOUT authentication
 exports.createParticipantUnAuth = async (req, res) => {
     try {
         const { nome, email, nascimento, igreja } = req.body;
@@ -176,10 +174,9 @@ exports.createParticipantUnAuth = async (req, res) => {
     }
 };
 
-// Criar participante COM autenticação
+// Create participant WITH authentication
 exports.createParticipantAuth = async (req, res) => {
     try {
-        //Middleware de autenticação já verifica o token
         const { nome, email, nascimento, igreja } = req.body;
 
         if (!nome || !email || !nascimento || !igreja) {
@@ -209,23 +206,29 @@ exports.createParticipantAuth = async (req, res) => {
     }
 };
 
-// Listar todos os participantes
+// List all participants
 exports.getAllParticipants = async (req, res) => {
     try {
         const { igreja } = req.query;
         const query = igreja ? { igreja } : {};
 
         const participants = await Participant.find(query).lean();
+        const igrejaModel = mongoose.model('Igreja'); // Get the model once
 
-        const formattedParticipants = participants.map(p => ({
-            ...p,
-            nascimento: p.nascimento ? formatDate(p.nascimento) : null,
-            data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
-            data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
-            igreja: p.igreja ? (await mongoose.model('Igreja').findById(p.igreja).lean()).nome : 'N/A'
-        }));
+        const formattedParticipants = participants.map(async (p) => {
+            const igrejaData = p.igreja ? await igrejaModel.findById(p.igreja).lean() : null;
+            return {
+                ...p,
+                nascimento: p.nascimento ? formatDate(p.nascimento) : null,
+                data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
+                data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
+                igreja: igrejaData ? igrejaData.nome : 'N/A'
+            };
+        });
 
-        res.json(formattedParticipants);
+
+        const results = await Promise.all(formattedParticipants);
+        res.json(results);
     } catch (error) {
         handleError(res, error, 'Erro ao buscar participantes');
     }
@@ -253,13 +256,13 @@ exports.getParticipantById = async (req, res) => {
     }
 };
 
-// Atualizar um participante
+// Update participant
 exports.updateParticipant = async (req, res) => {
     try {
         const { id_participante } = req.params;
         const updateData = { ...req.body };
 
-        if (updateData.igreja && typeof updateData.igreja !== 'string' || updateData.igreja.trim() === '') {
+        if (updateData.igreja && (typeof updateData.igreja !== 'string' || updateData.igreja.trim() === '')) {
             throw new Error('O ID da igreja deve ser uma string válida.');
         }
 
@@ -279,7 +282,7 @@ exports.updateParticipant = async (req, res) => {
     }
 };
 
-// Confirmação de pagamento
+// Confirm payment
 exports.confirmarPagamento = async (req, res) => {
     try {
         const { id_participante } = req.params;
@@ -300,7 +303,7 @@ exports.confirmarPagamento = async (req, res) => {
     }
 };
 
-// Cancelamento da confirmação de pagamento
+// Cancel payment confirmation
 exports.unconfirmPayment = async (req, res) => {
     try {
         const { id_participante } = req.params;
@@ -320,7 +323,7 @@ exports.unconfirmPayment = async (req, res) => {
     }
 };
 
-// Deletar um participante
+// Delete participant
 exports.deleteParticipant = async (req, res) => {
     try {
         const { id_participante } = req.params;
@@ -336,20 +339,25 @@ exports.deleteParticipant = async (req, res) => {
     }
 };
 
-// Gerar PDF
+// Generate PDF
 exports.generatePdf = async (req, res) => {
     try {
         const { igreja } = req.query;
         const query = igreja ? { igreja } : {};
         const participants = await Participant.find(query).lean();
+        const igrejaModel = mongoose.model('Igreja'); // Get the model once
 
-        const formattedParticipants = participants.map(p => ({
-            ...p,
-            nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
-            data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
-            data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
-            igreja: p.igreja ? (await mongoose.model('Igreja').findById(p.igreja).lean()).nome : 'N/A'
+        const formattedParticipants = await Promise.all(participants.map(async (p) => {
+            const igrejaData = p.igreja ? await igrejaModel.findById(p.igreja).lean() : null;
+            return {
+                ...p,
+                nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
+                data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
+                data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
+                igreja: igrejaData ? igrejaData.nome : 'N/A'
+            };
         }));
+
 
         const fonts = {
             Roboto: {
