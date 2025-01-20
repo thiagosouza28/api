@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const participantController = require('../controllers/participantController');
 const express = require('express');
-const router = express.Router();
-const participantController = require('../controllers/participantController');
-const authMiddleware = require('../middlewares/authMiddleware');
+
 
 router.post('/inscricao', participantController.createParticipantUnAuth); // Sem autenticação
 router.use(authMiddleware); // Aplica o middleware de autenticação para as rotas abaixo.
