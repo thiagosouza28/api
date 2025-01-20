@@ -128,8 +128,8 @@ function handleError(res, error, defaultMessage) {
         statusCode = 400;
         errorMessage = 'Erro de validação: ' + Object.values(error.errors).map(e => e.message).join(', ');
     } else if (error.code === 11000) {
-        statusCode = 409;
-        errorMessage = 'Já existe um participante com esse ID.';
+        statusCode = 409; //Conflict
+        errorMessage = 'Já existe um participante com este endereço de e-mail.';
     } else if (error.message.includes('Igreja inválida')) {
         statusCode = 400;
         errorMessage = 'Igreja inválida';
