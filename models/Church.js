@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const churchSchema = new mongoose.Schema({
-  igreja: {
+  nome: {
     type: String,
     required: true
   },
