@@ -153,82 +153,6 @@ exports.createParticipantUnAuth = async (req, res) => {
     }
 };
 
-// Create participant WITH authentication
-exports.createParticipantAuth = async (req, res) => {
-    try {
-        const { nome, email, nascimento, igreja: igrejaId } = req.body;
-
-        if (!nome || !email || !nascimento || !igrejaId) {
-            throw new Error('Todos os campos são obrigatórios.');
-        }
-
-        const church = await Church.findById(igrejaId);
-        if (!church) {
-            throw new Error('Igreja inválida.');
-        }
-
-        const id_participante = await generateParticipantId();
-        const participant = new Participant({
-            id_participante,
-            nome,
-            email,
-            nascimento: DateTime.fromISO(nascimento).toJSDate(),
-            idade: calculateAge(nascimento),
-            igreja: church.nome, // Store church name
-        });
-
-        await participant.save();
-        await sendConfirmationEmail(participant);
-        res.status(201).json(participant);
-    } catch (error) {
-        handleError(res, error, 'Erro ao criar participante (com autenticação)');
-    }
-};
-
-// List all participants
-exports.getAllParticipants = async (req, res) => {
-    try {
-        const { igreja } = req.query;
-        const query = igreja ? { igreja } : {};
-
-        const participants = await Participant.find(query).lean();
-
-        const formattedParticipants = participants.map(p => ({
-            ...p,
-            nascimento: p.nascimento ? formatDate(p.nascimento) : null,
-            data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
-            data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
-        }));
-
-        res.json(formattedParticipants);
-    } catch (error) {
-        handleError(res, error, 'Erro ao buscar participantes');
-    }
-};
-
-exports.getParticipantById = async (req, res) => {
-    try {
-        const participant = await Participant.findOne({ id_participante: req.params.id_participante }).lean();
-
-        if (!participant) {
-            throw new Error('Participante não encontrado');
-        }
-
-        const formattedParticipant = {
-            ...participant,
-            nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
-            data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
-            data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
-        };
-
-        res.json(formattedParticipant);
-    } catch (error) {
-        handleError(res, error, 'Erro ao buscar participante');
-    }
-};
-
-
-// Abstracted participant creation function
 const createParticipant = async (req, res, authenticated = false) => {
     try {
         console.log(`Received Request Body (${authenticated ? 'Auth' : 'UnAuth'}):`, req.body);
@@ -271,8 +195,6 @@ const createParticipant = async (req, res, authenticated = false) => {
 
 exports.createParticipantAuth = (req, res) => createParticipant(req, res, true);
 exports.createParticipantUnAuth = (req, res) => createParticipant(req, res, false);
-
-
 
 // Update participant
 exports.updateParticipant = async (req, res) => {
