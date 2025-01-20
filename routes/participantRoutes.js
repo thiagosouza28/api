@@ -1,22 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const participantController = require('../controllers/participantController');
+const express = require('express');
+const router = express.Router();
+const participantController = require('../controllers/participantController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// Rota de inscrição (sem autenticação)
-router.post('/inscricao', async (req, res) => {
-  try {
-    const participant = await participantController.createParticipant(req.body);
-    res.status(201).json(participant);
-  } catch (error) {
-    console.error("Erro ao criar participante:", error);
-    res.status(500).json({ error: 'Erro ao criar participante' });
-  }
-});
-
-
-// Middleware de autenticação para as rotas abaixo
-router.use(authMiddleware);
+router.post('/inscricao', participantController.createParticipantUnAuth); // Sem autenticação
+router.use(authMiddleware); // Aplica o middleware de autenticação para as rotas abaixo.
+router.post('/', participantController.createParticipantAuth); // Com autenticação
 
 
 // Rotas protegidas (requerem autenticação)
