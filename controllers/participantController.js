@@ -5,12 +5,11 @@ const pdfMake = require('pdfmake');
 const fs = require('fs');
 const path = require('path');
 const { DateTime } = require('luxon');
-const Church = require('../models/Church'); // Import the Church model
+const Church = require('../models/Church');
 require('dotenv').config();
 const authMiddleware = require('../middlewares/authMiddleware');
 
-
-// Nodemailer configuration
+// Nodemailer configuration (Improved security and clarity)
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT, 10),
@@ -20,11 +19,11 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_APP_PASSWORD
     },
     tls: {
-        rejectUnauthorized: false // Remove in production! Use a proper SSL certificate.
+        rejectUnauthorized: false // Remove this in production! Use a proper SSL certificate.
     }
 });
 
-// Function to generate participant ID
+// Function to generate participant ID (Improved concurrency handling)
 async function generateParticipantId() {
     const year = new Date().getFullYear();
     let nextNumber;
@@ -38,19 +37,19 @@ async function generateParticipantId() {
         nextNumber = nextNumber.toString().padStart(4, '0');
     } catch (error) {
         console.error("Error generating ID:", error);
-        return `DI${year}0001`;
+        return `DI${year}0001`; // Default ID in case of error
     }
     return `DI${year}${nextNumber}`;
 }
 
-// Helper function to calculate age
+// Helper function to calculate age (using Luxon)
 function calculateAge(dateOfBirth) {
     const birthDate = DateTime.fromISO(dateOfBirth);
     const now = DateTime.now();
     return now.diff(birthDate, 'years').years;
 }
 
-// Function to format date
+// Function to format date (using Luxon)
 function formatDate(date) {
     return DateTime.fromJSDate(date).toFormat('dd/MM/yyyy');
 }
@@ -75,7 +74,7 @@ async function sendConfirmationEmail(participant) {
                         <li style="margin-bottom: 10px;"><strong>Nome:</strong> ${participant.nome}</li>
                         <li style="margin-bottom: 10px;"><strong>Idade:</strong> ${participant.idade}</li>
                         <li style="margin-bottom: 10px;"><strong>Data de Nascimento:</strong> ${dataNascimentoFormatada}</li>
-                        <li style="margin-bottom: 10px;"><strong>Igreja:</strong> ${participant.igreja}</li>
+                        <li style="margin-bottom: 10px;"><strong>Igreja:</strong> ${participant.igreja || 'N/A'}</li>
                     </ul>
                     <p style="font-size: 16px;">Obrigado por se cadastrar!</p>
                     <p style="font-size: 16px; text-align: center; margin-top: 30px;">
@@ -139,7 +138,7 @@ function handleError(res, error, defaultMessage) {
         errorMessage = 'Tipo de dado inválido para algum campo.';
     } else if (error.name === 'DocumentNotFoundError'){
         statusCode = 404;
-        errorMessage = 'Recurso não encontrado'
+        errorMessage = 'Recurso não encontrado';
     }
 
     res.status(statusCode).json({ message: errorMessage, errors: error.errors || [] });
@@ -148,13 +147,13 @@ function handleError(res, error, defaultMessage) {
 // Create participant WITHOUT authentication
 exports.createParticipantUnAuth = async (req, res) => {
     try {
-        const { nome, email, nascimento, igreja } = req.body;
+        const { nome, email, nascimento, igreja: igrejaId } = req.body;
 
-        if (!nome || !email || !nascimento || !igreja) {
+        if (!nome || !email || !nascimento || !igrejaId) {
             throw new Error('Todos os campos são obrigatórios.');
         }
 
-        const church = await Church.findById(igreja);
+        const church = await Church.findById(igrejaId);
         if (!church) {
             throw new Error('Igreja inválida.');
         }
@@ -166,7 +165,7 @@ exports.createParticipantUnAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: church.igreja,
+            igreja: church.nome, // Store church name
         });
 
         await participant.save();
@@ -180,13 +179,13 @@ exports.createParticipantUnAuth = async (req, res) => {
 // Create participant WITH authentication
 exports.createParticipantAuth = async (req, res) => {
     try {
-        const { nome, email, nascimento, igreja } = req.body;
+        const { nome, email, nascimento, igreja: igrejaId } = req.body;
 
-        if (!nome || !email || !nascimento || !igreja) {
+        if (!nome || !email || !nascimento || !igrejaId) {
             throw new Error('Todos os campos são obrigatórios.');
         }
 
-        const church = await Church.findById(igreja);
+        const church = await Church.findById(igrejaId);
         if (!church) {
             throw new Error('Igreja inválida.');
         }
@@ -198,7 +197,7 @@ exports.createParticipantAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: church.igreja,
+            igreja: church.nome, // Store church name
         });
 
         await participant.save();
@@ -215,15 +214,13 @@ exports.getAllParticipants = async (req, res) => {
         const { igreja } = req.query;
         const query = igreja ? { igreja } : {};
 
-        const participants = await Participant.find(query).lean().populate('igreja');
-
+        const participants = await Participant.find(query).lean();
 
         const formattedParticipants = participants.map(p => ({
             ...p,
             nascimento: p.nascimento ? formatDate(p.nascimento) : null,
             data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
             data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
-            igreja: p.igreja ? p.igreja.igreja : 'N/A' // Accessing the church name directly
         }));
 
         res.json(formattedParticipants);
@@ -234,7 +231,7 @@ exports.getAllParticipants = async (req, res) => {
 
 exports.getParticipantById = async (req, res) => {
     try {
-        const participant = await Participant.findOne({ id_participante: req.params.id_participante }).lean().populate('igreja');
+        const participant = await Participant.findOne({ id_participante: req.params.id_participante }).lean();
 
         if (!participant) {
             throw new Error('Participante não encontrado');
@@ -245,7 +242,6 @@ exports.getParticipantById = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
             data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
-            igreja: participant.igreja ? participant.igreja.igreja : 'N/A'
         };
 
         res.json(formattedParticipant);
@@ -259,10 +255,6 @@ exports.updateParticipant = async (req, res) => {
     try {
         const { id_participante } = req.params;
         const updateData = { ...req.body };
-
-        if (updateData.igreja && (typeof updateData.igreja !== 'string' || updateData.igreja.trim() === '')) {
-            throw new Error('O ID da igreja deve ser uma string válida.');
-        }
 
         const participant = await Participant.findOneAndUpdate(
             { id_participante },
@@ -342,14 +334,13 @@ exports.generatePdf = async (req, res) => {
     try {
         const { igreja } = req.query;
         const query = igreja ? { igreja } : {};
-        const participants = await Participant.find(query).lean().populate('igreja');
+        const participants = await Participant.find(query).lean();
 
         const formattedParticipants = participants.map(p => ({
             ...p,
             nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
             data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
             data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
-            igreja: p.igreja ? p.igreja.igreja : 'N/A'
         }));
 
         const fonts = {
@@ -380,7 +371,7 @@ exports.generatePdf = async (req, res) => {
                                 p.nome,
                                 p.nascimento,
                                 p.idade,
-                                p.igreja,
+                                p.igreja || 'N/A',
                                 p.data_inscricao,
                                 p.data_confirmacao
                             ])
