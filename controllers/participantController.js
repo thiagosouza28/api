@@ -147,10 +147,16 @@ function handleError(res, error, defaultMessage) {
 // Create participant WITHOUT authentication
 exports.createParticipantUnAuth = async (req, res) => {
     try {
-        const { nome, email, nascimento, igreja: igrejaId } = req.body;
+        const { nome, email, nascimento, igrejaId } = req.body;
 
         if (!nome || !email || !nascimento || !igrejaId) {
             throw new Error('Todos os campos são obrigatórios.');
+        }
+
+        //Check if email already exists
+        const existingParticipant = await Participant.findOne({ email });
+        if (existingParticipant) {
+            throw new Error('Já existe um participante com este e-mail.');
         }
 
         const church = await Church.findById(igrejaId);
@@ -165,7 +171,7 @@ exports.createParticipantUnAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: church.nome, // Store church name
+            igreja: church.nome, 
         });
 
         await participant.save();
