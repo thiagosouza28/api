@@ -97,7 +97,7 @@ async function sendPaymentConfirmationEmail(participant) {
         const linkAcesso = `https://api-ckry.onrender.com/api/participante/${participant.id_participante}`;
 
         await transporter.sendMail({
-            from: `"Inscrição Ipatinga" <${process.env.EMAIL_USER}>`,
+            from: `"Inscrição Ipitinga" <${process.env.EMAIL_USER}>`,
             to: participant.email,
             subject: 'Confirmação de Pagamento',
             html: `
@@ -213,7 +213,7 @@ exports.getAllParticipants = async (req, res) => {
         const query = igreja ? { igreja } : {};
 
         const participants = await Participant.find(query).lean();
-        const igrejaModel = mongoose.model('Igreja'); // Get the model once
+        const igrejaModel = mongoose.model('churchS '); // Get the model once
 
         const formattedParticipants = participants.map(async (p) => {
             const igrejaData = p.igreja ? await igrejaModel.findById(p.igreja).lean() : null;
