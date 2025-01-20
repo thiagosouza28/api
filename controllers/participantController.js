@@ -166,7 +166,7 @@ exports.createParticipantUnAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: church._id,
+            igreja: church.igreja,
         });
 
         await participant.save();
@@ -198,7 +198,7 @@ exports.createParticipantAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: church._id,
+            igreja: church.igreja,
         });
 
         await participant.save();
@@ -223,7 +223,7 @@ exports.getAllParticipants = async (req, res) => {
             nascimento: p.nascimento ? formatDate(p.nascimento) : null,
             data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
             data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
-            igreja: p.igreja ? p.igreja.nome : 'N/A' // Accessing the church name directly
+            igreja: p.igreja ? p.igreja.igreja : 'N/A' // Accessing the church name directly
         }));
 
         res.json(formattedParticipants);
@@ -245,7 +245,7 @@ exports.getParticipantById = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
             data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
-            igreja: participant.igreja ? participant.igreja.nome : 'N/A'
+            igreja: participant.igreja ? participant.igreja.igreja : 'N/A'
         };
 
         res.json(formattedParticipant);
@@ -349,7 +349,7 @@ exports.generatePdf = async (req, res) => {
             nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
             data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
             data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
-            igreja: p.igreja ? p.igreja.nome : 'N/A'
+            igreja: p.igreja ? p.igreja.igreja : 'N/A'
         }));
 
         const fonts = {
