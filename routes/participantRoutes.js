@@ -3,19 +3,24 @@ const router = express.Router();
 const participantController = require('../controllers/participantController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+// Public Routes (No Authentication)
+router.post('/inscricao', participantController.createParticipantUnAuth);
 
-router.post('/inscricao', participantController.createParticipantUnAuth); // Sem autenticação
+// Protected Routes (Authentication Required)
+router.use(authMiddleware);
 
-router.use(authMiddleware); // Aplica o middleware de autenticação para as rotas abaixo.
+router.post('/', participantController.createParticipantAuth);
+router.get('/', participantController.getAllParticipants);
+router.get('/:id_participante', participantController.getParticipantById);
+router.put('/:id_participante', participantController.updateParticipant);
+router.put('/:id_participante/confirmar-pagamento', participantController.confirmarPagamento);
+router.put('/:id_participante/cancelar-confirmacao', participantController.unconfirmPayment);
+router.delete('/:id_participante', participantController.deleteParticipant);
+router.get('/pdf', participantController.generatePdf);
 
-router.post('/', participantController.createParticipantAuth); // Com autenticação
-router.get('/', participantController.getAllParticipants);  // Corrected
-router.get('/:id_participante', participantController.getParticipantById); // Corrected
-router.put('/:id_participante', participantController.updateParticipant); // Corrected
-router.put('/:id_participante/confirmar-pagamento', participantController.confirmarPagamento); // Corrected
-router.put('/:id_participante/cancelar-confirmacao', participantController.unconfirmPayment); // Corrected
-router.delete('/:id_participante', participantController.deleteParticipant); // Corrected
-router.get('/pdf', participantController.generatePdf); // Corrected
-
+// 405 Method Not Allowed Handler (for unsupported HTTP methods)
+router.all('*', (req, res) => {
+    res.status(405).json({ message: `Método ${req.method} não permitido para esta rota.` });
+});
 
 module.exports = router;
