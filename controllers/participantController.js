@@ -151,7 +151,7 @@ exports.createParticipantUnAuth = async (req, res) => {
             throw new Error('Todos os campos são obrigatórios.');
         }
 
-        const igrejaObj = await mongoose.model('Igreja').findById(igreja);
+        const igrejaObj = await mongoose.model('church').findById(igreja);
         if (!igrejaObj) {
             throw new Error('Igreja inválida.');
         }
@@ -183,7 +183,7 @@ exports.createParticipantAuth = async (req, res) => {
             throw new Error('Todos os campos são obrigatórios.');
         }
 
-        const igrejaObj = await mongoose.model('Igreja').findById(igreja);
+        const igrejaObj = await mongoose.model('church').findById(igreja);
         if (!igrejaObj) {
             throw new Error('Igreja inválida.');
         }
@@ -213,7 +213,7 @@ exports.getAllParticipants = async (req, res) => {
         const query = igreja ? { igreja } : {};
 
         const participants = await Participant.find(query).lean();
-        const igrejaModel = mongoose.model('churchS '); // Get the model once
+        const igrejaModel = mongoose.model('church'); // Get the model once
 
         const formattedParticipants = participants.map(async (p) => {
             const igrejaData = p.igreja ? await igrejaModel.findById(p.igreja).lean() : null;
@@ -247,7 +247,7 @@ exports.getParticipantById = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
             data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
-            igreja: participant.igreja ? (await mongoose.model('Igreja').findById(participant.igreja).lean()).igreja : 'N/A'
+            igreja: participant.igreja ? (await mongoose.model('church').findById(participant.igreja).lean()).igreja : 'N/A'
         };
 
         res.json(formattedParticipant);
@@ -345,7 +345,7 @@ exports.generatePdf = async (req, res) => {
         const { igreja } = req.query;
         const query = igreja ? { igreja } : {};
         const participants = await Participant.find(query).lean();
-        const igrejaModel = mongoose.model('Igreja'); // Get the model once
+        const igrejaModel = mongoose.model('church'); // Get the model once
 
         const formattedParticipants = await Promise.all(participants.map(async (p) => {
             const igrejaData = p.igreja ? await igrejaModel.findById(p.igreja).lean() : null;
