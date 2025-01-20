@@ -163,7 +163,7 @@ exports.createParticipantUnAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: igrejaObj._id,
+            igreja: igrejaObj.igreja,
         });
 
         await participant.save();
@@ -195,7 +195,7 @@ exports.createParticipantAuth = async (req, res) => {
             email,
             nascimento: DateTime.fromISO(nascimento).toJSDate(),
             idade: calculateAge(nascimento),
-            igreja: igrejaObj._id,
+            igreja: igrejaObj.igreja,
         });
 
         await participant.save();
@@ -222,7 +222,7 @@ exports.getAllParticipants = async (req, res) => {
                 nascimento: p.nascimento ? formatDate(p.nascimento) : null,
                 data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : null,
                 data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : null,
-                igreja: igrejaData ? igrejaData.nome : 'N/A'
+                igreja: igrejaData ? igrejaData.igreja : 'N/A'
             };
         });
 
@@ -247,7 +247,7 @@ exports.getParticipantById = async (req, res) => {
             nascimento: participant.nascimento ? formatDate(participant.nascimento) : null,
             data_inscricao: participant.data_inscricao ? formatDate(participant.data_inscricao) : null,
             data_confirmacao: participant.data_confirmacao ? formatDate(participant.data_confirmacao) : null,
-            igreja: participant.igreja ? (await mongoose.model('Igreja').findById(participant.igreja).lean()).nome : 'N/A'
+            igreja: participant.igreja ? (await mongoose.model('Igreja').findById(participant.igreja).lean()).igreja : 'N/A'
         };
 
         res.json(formattedParticipant);
@@ -354,7 +354,7 @@ exports.generatePdf = async (req, res) => {
                 nascimento: p.nascimento ? formatDate(p.nascimento) : 'N/A',
                 data_inscricao: p.data_inscricao ? formatDate(p.data_inscricao) : 'N/A',
                 data_confirmacao: p.data_confirmacao ? formatDate(p.data_confirmacao) : 'N/A',
-                igreja: igrejaData ? igrejaData.nome : 'N/A'
+                igreja: igrejaData ? igrejaData.igreja : 'N/A'
             };
         }));
 
