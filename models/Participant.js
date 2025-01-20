@@ -19,9 +19,9 @@ const participantSchema = new mongoose.Schema({
         required: [true, 'A data de nascimento é obrigatória']
     },
     igreja: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Igreja',
-        required: [true, 'A igreja é obrigatória']
+        type: String,
+        required: true,
+        trim: true,
     },
     email: {
         type: String,
