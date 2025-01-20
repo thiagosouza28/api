@@ -11,6 +11,7 @@ const participantSchema = new mongoose.Schema({
         type: String,
         required: [true, 'O nome é obrigatório'],
         trim: true,
+        minlength: [3, 'O nome deve ter pelo menos 3 caracteres'],
         maxlength: [100, 'O nome deve ter no máximo 100 caracteres']
     },
     nascimento: {
@@ -27,8 +28,13 @@ const participantSchema = new mongoose.Schema({
         required: [true, 'O email é obrigatório'],
         lowercase: true,
         trim: true,
-        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Por favor, insira um email válido']
-    },
+        unique: false, // Remova unique para permitir e-mails duplicados
+        validate: {
+            validator: function(v) {
+                return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(v);
+            },
+            message: props => `${props.value} não é um email válido!`
+        },
     data_inscricao: {
         type: Date,
         default: Date.now
